@@ -19,11 +19,5 @@ func main() {
 		log.Fatalf("fatal database error: %+v", err)
 	}
 
-	tx, err := db.Begin()
-	if err != nil {
-		panic(err)
-	}
-	defer tx.Rollback()
-
 	log.Fatalf("fatal listen error: %+v", http.ListenAndServe(*flagAddr, nil))
 }
