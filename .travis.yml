@@ -1,0 +1,26 @@
+sudo: false
+language: go
+go:
+  - 1.6
+  - tip
+script:
+  - go generate ./... && git status && git add --all . && [ ! -n "`git diff --staged HEAD`" ]
+  - go test -p 1 -v ./... -db 'dbname=travis_ci_test user=postgres sslmode=disable'
+services:
+  - postgresql
+addons:
+  postgresql: 9.4
+  apt:
+    packages:
+      - nodejs
+      - postgresql-plperl-9.4
+before_script:
+  - psql -c 'create database travis_ci_test;' -U postgres
+notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/11ed5656d9814f0bed7a
+    on_success: change
+    on_failure: always
+    on_start: never
+
