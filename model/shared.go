@@ -192,3 +192,57 @@ func (ips IPs) Value() (driver.Value, error) {
 
 	return "{" + strings.Join(s, ",") + "}", nil
 }
+
+// Strings provides support for the PostgreSQL types text[] and citext[].
+type Strings []string
+
+// Scan implements sql.Scanner.
+func (strs *Strings) Scan(value interface{}) error {
+	var src string
+	if b, ok := value.([]byte); ok {
+		src = string(b)
+	} else {
+		return errors.Errorf("unexpected IDs type %T", value)
+	}
+
+	if len(src) < 2 || src[0] != '{' || src[len(src)-1] != '}' {
+		return errors.Errorf("invalid array: %q", src)
+	}
+
+	if len(src) == 2 {
+		*strs = nil
+		return nil
+	}
+
+	if len(src) < 4 || src[1] != '"' || src[len(src)-2] != '"' {
+		return errors.Errorf("invalid string array: %q", src)
+	}
+
+	values := strings.Split(src[2:len(src)-2], `","`)
+	decoded := make(Strings, len(values))
+
+	for i, v := range values {
+		s, err := strconv.Unquote(`"` + v + `"`)
+		if err != nil {
+			return errors.Wrapf(err, "invalid string: %q", v)
+		}
+
+		decoded[i] = s
+	}
+
+	*strs = decoded
+	return nil
+}
+
+// Value implements driver.Valuer.
+func (strs Strings) Value() (driver.Value, error) {
+	s := make([]string, len(strs))
+	for i, v := range strs {
+		s[i] = strconv.Quote(v)
+	}
+
+	return "{" + strings.Join(s, ",") + "}", nil
+}
+
+// Use $1 and $2 without making the query actually do anything.
+const noopPermission = `(coalesce(0, $1::bigint) = 0 and coalesce(false, $2::boolean) = false)`

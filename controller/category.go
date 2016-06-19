@@ -51,14 +51,15 @@ func category(w http.ResponseWriter, ctx *model.Context) error {
 	}
 
 	for _, id := range category.Path {
-		if c, err := id.Get(ctx); err != nil {
+		c, err := id.Get(ctx)
+		if err != nil {
 			return err
-		} else {
-			ctx.Header.Breadcrumb = append(ctx.Header.Breadcrumb, model.Breadcrumb{
-				Name: c.Name,
-				Path: fmt.Sprintf("/category/%d/%s", c.ID, c.Slug),
-			})
 		}
+
+		ctx.Header.Breadcrumb = append(ctx.Header.Breadcrumb, model.Breadcrumb{
+			Name: c.Name,
+			Path: fmt.Sprintf("/category/%d/%s", c.ID, c.Slug),
+		})
 	}
 
 	if err = ctx.Tx.Commit(); err != nil {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/BenLubar/webscale/db"
+	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -17,15 +18,28 @@ type User struct {
 	password  []byte
 	Email     string
 	JoinDate  time.Time
-	LastSeen  time.Time
+	LastSeen  pq.NullTime
 	Address   IPs
-	Birthday  time.Time
+	Birthday  pq.NullTime
 	Signature string
 	Bio       string
 	Location  string
 	Website   string
 	Avatar    string
 }
+
+const userFields = `u.id, u.name, u.slug, u.password, u.email, u.join_date, u.last_seen, u.address, u.birthday, u.signature, u.bio, u.location, u.website, u.avatar`
+
+func scanUser(s scanner) (*User, error) {
+	var u User
+	if err := s.Scan(&u.ID, &u.Name, &u.Slug, &u.password, &u.Email, &u.JoinDate, &u.LastSeen, &u.Address, &u.Birthday, &u.Signature, &u.Bio, &u.Location, &u.Website, &u.Avatar); err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+var idGetUser = db.Prepare(`select ` + userFields + ` from users as u where can_user($1::bigint, 'user-meta', $2::boolean, u.id) and u.id = $3::bigint order by u.id asc;`)
+var idsGetUser = db.Prepare(`select ` + userFields + ` from users as u where can_user($1::bigint, 'user-meta', $2::boolean, u.id) and array[u.id] <@ $3::bigint[] order by u.id asc;`)
 
 const PasswordCost = bcrypt.DefaultCost
 
