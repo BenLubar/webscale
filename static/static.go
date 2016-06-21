@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"net/http"
+	"strings"
 )
 
 func css(a asset) asset { return doAsset(a) }
@@ -18,7 +19,7 @@ var tags = make(map[string]string)
 func doAsset(a asset) asset {
 	http.Handle("/static/"+a.Name, a)
 	if a.etag != "" {
-		tagBytes, err := base64.StdEncoding.DecodeString(a.etag)
+		tagBytes, err := base64.StdEncoding.DecodeString(strings.Trim(a.etag, `"`))
 		if err != nil {
 			tagBytes = []byte(a.etag)
 		}
