@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/BenLubar/webscale/model"
+	"github.com/BenLubar/webscale/static"
 	"github.com/pkg/errors"
 )
 
@@ -14,7 +15,9 @@ type Template struct {
 	Name string
 }
 
-var tmpl = template.New("")
+var tmpl = template.New("").Funcs(template.FuncMap{
+	"static": static.Path,
+})
 
 func parse(name, content string) *Template {
 	template.Must(tmpl.New(name).Parse(content))

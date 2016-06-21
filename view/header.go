@@ -6,7 +6,7 @@ var _ = parse("header", `<!DOCTYPE html>
 <meta charset="utf-8">
 <title>{{with .Title}}{{.}} - {{end}}#webscale</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="{{static "style.css"}}">
 </head>
 <body>
 <header>
