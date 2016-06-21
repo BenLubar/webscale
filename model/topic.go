@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/BenLubar/webscale/db"
+	"github.com/pkg/errors"
 )
 
 type Topic struct {
@@ -30,3 +31,10 @@ func scanTopic(s scanner) (*Topic, error) {
 
 var idGetTopic = db.Prepare(`select ` + topicFields + ` from topics as t where can_topic($1::bigint, 'topic-meta', $2::boolean, t.id) and t.id = $3::bigint order by t.id asc;`)
 var idsGetTopic = db.Prepare(`select ` + topicFields + ` from topics as t where can_topic($1::bigint, 'topic-meta', $2::boolean, t.id) and array[t.id] <@ $3::bigint[] order by t.id asc;`)
+
+var topicLatestTopics = db.Prepare(`select ` + topicFields + ` from topics as t where can_topic($1::bigint, 'topic-meta', $2::boolean, t.id) order by t.bumped_at desc, t.id asc limit $4::bigint offset $3::bigint * $4::bigint;`)
+
+func LatestTopics(ctx *Context, page int64) ([]*Topic, error) {
+	topics, err := scanTopicRows(ctx.Tx.Query(topicLatestTopics, ctx.CurrentUser, ctx.Sudo, page, perPage))
+	return topics, errors.Wrapf(err, "get latest topics (page %d)", page)
+}

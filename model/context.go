@@ -11,7 +11,9 @@ type Context struct {
 	CurrentUser UserID
 	Sudo        bool
 	Request     *http.Request
+	Page        int64
 	Header      struct {
+		Template   string
 		Title      string
 		Breadcrumb []Breadcrumb
 	}

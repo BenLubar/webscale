@@ -13,9 +13,25 @@ func index(w http.ResponseWriter, ctx *model.Context) error {
 		return nil
 	}
 
-	categories, err := model.TopLevelCategories(ctx)
-	if err != nil {
+	var err error
+	var data struct {
+		Categories []*model.Category
+		Latest     []*model.Topic
+	}
+
+	if ctx.Page == 0 {
+		if data.Categories, err = model.TopLevelCategories(ctx); err != nil {
+			return err
+		}
+	}
+
+	if data.Latest, err = model.LatestTopics(ctx, ctx.Page); err != nil {
 		return err
+	}
+
+	if ctx.Page != 0 && len(data.Latest) == 0 {
+		handleError(w, ctx, nil, http.StatusNotFound)
+		return nil
 	}
 
 	ctx.Header.Title = ""
@@ -31,11 +47,7 @@ func index(w http.ResponseWriter, ctx *model.Context) error {
 		return err
 	}
 
-	return view.Index.Execute(w, ctx, http.StatusOK, struct {
-		Categories []*model.Category
-	}{
-		Categories: categories,
-	})
+	return view.Index.Execute(w, ctx, http.StatusOK, data)
 }
 
 func init() {

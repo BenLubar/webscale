@@ -2,6 +2,7 @@ package controller // import "github.com/BenLubar/webscale/controller"
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/BenLubar/webscale/db"
 	"github.com/BenLubar/webscale/model"
@@ -13,6 +14,15 @@ type handler func(w http.ResponseWriter, ctx *model.Context) error
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var ctx model.Context
 	ctx.Request = r
+
+	if page := ctx.Request.FormValue("page"); page != "" {
+		var err error
+		ctx.Page, err = strconv.ParseInt(page, 10, 64)
+		if err != nil || ctx.Page <= 0 || page[0] == '0' {
+			handleError(w, &ctx, nil, http.StatusNotFound)
+			return
+		}
+	}
 
 	var err error
 	ctx.Tx, err = db.Begin()

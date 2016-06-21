@@ -1,11 +1,11 @@
 package view // import "github.com/BenLubar/webscale/view"
 
 var _ = parse("header", `<!DOCTYPE html>
-<html>
+<html class="tmpl-{{.Template}}">
 <head>
 <meta charset="utf-8">
 <title>{{with .Title}}{{.}} - {{end}}#webscale</title>
-<meta name=viewport content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>

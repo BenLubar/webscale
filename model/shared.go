@@ -246,3 +246,6 @@ func (strs Strings) Value() (driver.Value, error) {
 
 // Use $1 and $2 without making the query actually do anything.
 const noopPermission = `(coalesce(0, $1::bigint) = 0 and coalesce(false, $2::boolean) = false)`
+
+// Eventually, this will be stored in the database somewhere.
+const perPage = 50

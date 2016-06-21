@@ -41,3 +41,10 @@ func (c *Category) Children(ctx *Context) ([]*Category, error) {
 	categories, err := scanCategoryRows(ctx.Tx.Query(categoryChildren, ctx.CurrentUser, ctx.Sudo, c.ID))
 	return categories, errors.Wrapf(err, "list children of category %d", c.ID)
 }
+
+var categoryTopics = db.Prepare(`select ` + topicFields + ` from topics as t where can_category($1::bigint, 'category-list-topics', $2::boolean, $3::bigint) and can_topic($1::bigint, 'topic-meta', $2::boolean, t.id) and t.category_id = $3::bigint order by t.bumped_at desc, t.id asc limit $5::bigint offset $4::bigint * $5::bigint;`)
+
+func (c *Category) Topics(ctx *Context, page int64) ([]*Topic, error) {
+	topics, err := scanTopicRows(ctx.Tx.Query(categoryTopics, ctx.CurrentUser, ctx.Sudo, c.ID, page, perPage))
+	return topics, errors.Wrapf(err, "list topics in category %d (page %d)", c.ID, page)
+}

@@ -1,4 +1,5 @@
 package model // import "github.com/BenLubar/webscale/model"
+
 import (
 	"database/sql"
 	"database/sql/driver"

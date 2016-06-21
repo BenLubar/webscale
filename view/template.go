@@ -23,6 +23,8 @@ func parse(name, content string) *Template {
 }
 
 func (t *Template) Execute(w http.ResponseWriter, ctx *model.Context, status int, data interface{}) error {
+	ctx.Header.Template = t.Name
+
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "header", ctx.Header); err != nil {
 		return errors.Wrap(err, "rendering header")

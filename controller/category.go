@@ -13,18 +13,28 @@ import (
 )
 
 func category(w http.ResponseWriter, ctx *model.Context) error {
+	if ctx.Request.URL.Path == "/category/" {
+		http.Redirect(w, ctx.Request, "/", http.StatusMovedPermanently)
+		return nil
+	}
+
 	path := strings.Split(strings.TrimPrefix(ctx.Request.URL.Path, "/category/"), "/")
 	if len(path) < 1 || len(path) > 2 {
 		handleError(w, ctx, nil, http.StatusNotFound)
 		return nil
 	}
 
-	var category *model.Category
+	var err error
+	var data struct {
+		Category *model.Category
+		Children []*model.Category
+		Topics   []*model.Topic
+	}
 
 	if n, err := strconv.ParseInt(path[0], 10, 64); err != nil || n == 0 {
 		handleError(w, ctx, nil, http.StatusNotFound)
 		return nil
-	} else if category, err = model.CategoryID(n).Get(ctx); err != nil {
+	} else if data.Category, err = model.CategoryID(n).Get(ctx); err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			handleError(w, ctx, nil, http.StatusNotFound)
 			return nil
@@ -32,17 +42,30 @@ func category(w http.ResponseWriter, ctx *model.Context) error {
 		return err
 	}
 
-	if len(path) < 2 || path[1] != category.Slug {
-		http.Redirect(w, ctx.Request, fmt.Sprintf("/category/%d/%s", category.ID, category.Slug), http.StatusMovedPermanently)
+	if len(path) < 2 || path[1] != data.Category.Slug {
+		url := fmt.Sprintf("/category/%d/%s", data.Category.ID, data.Category.Slug)
+		if ctx.Page != 0 {
+			url = fmt.Sprintf("%s?page=%d", url, ctx.Page)
+		}
+
+		http.Redirect(w, ctx.Request, url, http.StatusMovedPermanently)
 		return nil
 	}
 
-	children, err := category.Children(ctx)
-	if err != nil {
+	if data.Topics, err = data.Category.Topics(ctx, ctx.Page); err != nil {
 		return err
 	}
 
-	ctx.Header.Title = category.Name
+	if ctx.Page != 0 && len(data.Topics) == 0 {
+		handleError(w, ctx, nil, http.StatusNotFound)
+		return nil
+	}
+
+	if data.Children, err = data.Category.Children(ctx); err != nil {
+		return err
+	}
+
+	ctx.Header.Title = data.Category.Name
 	ctx.Header.Breadcrumb = []model.Breadcrumb{
 		{
 			Name: "#webscale",
@@ -50,12 +73,12 @@ func category(w http.ResponseWriter, ctx *model.Context) error {
 		},
 	}
 
-	for _, id := range category.Path {
-		c, err := id.Get(ctx)
-		if err != nil {
-			return err
-		}
+	breadcrumb, err := data.Category.Path.Get(ctx)
+	if err != nil {
+		return err
+	}
 
+	for _, c := range breadcrumb {
 		ctx.Header.Breadcrumb = append(ctx.Header.Breadcrumb, model.Breadcrumb{
 			Name: c.Name,
 			Path: fmt.Sprintf("/category/%d/%s", c.ID, c.Slug),
@@ -66,13 +89,7 @@ func category(w http.ResponseWriter, ctx *model.Context) error {
 		return err
 	}
 
-	return view.Category.Execute(w, ctx, http.StatusOK, struct {
-		Category *model.Category
-		Children []*model.Category
-	}{
-		Category: category,
-		Children: children,
-	})
+	return view.Category.Execute(w, ctx, http.StatusOK, data)
 }
 
 func init() {
