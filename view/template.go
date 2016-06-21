@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/BenLubar/webscale/model"
 	"github.com/BenLubar/webscale/static"
@@ -40,6 +41,7 @@ func (t *Template) Execute(w http.ResponseWriter, ctx *model.Context, status int
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Length", strconv.Itoa(buf.Len()))
 	w.WriteHeader(status)
 	// Ignore errors generated while doing the actual sending of the
 	// response. We've touched the ResponseWriter, so returning an error
