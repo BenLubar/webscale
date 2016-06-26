@@ -3,6 +3,8 @@
 package model // import "github.com/BenLubar/webscale/model"
 
 import (
+	"database/sql"
+
 	"github.com/BenLubar/webscale/db"
 	"github.com/pkg/errors"
 )
@@ -47,4 +49,31 @@ var categoryTopics = db.Prepare(`select ` + topicFields + ` from topics as t whe
 func (c *Category) Topics(ctx *Context, page int64) ([]*Topic, error) {
 	topics, err := scanTopicRows(ctx.Tx.Query(categoryTopics, ctx.CurrentUser, ctx.Sudo, c.ID, page, perPage))
 	return topics, errors.Wrapf(err, "list topics in category %d (page %d)", c.ID, page)
+}
+
+var categoriesLatestTopics = db.Prepare(`select ` + topicFields + ` from topics as t where t.id = (select t2.id from topics as t2 where can_topic($1::bigint, 'topic-meta', $2::boolean, t2.id) and t2.category_id = t.category_id order by t2.bumped_at desc, t.id asc limit 1) and can_category($1::bigint, 'category-list-topics', $2::boolean, t.category_id) and array[t.category_id] <@ $3::bigint[] order by t.category_id asc;`)
+
+func (ids CategoryIDs) LatestTopics(ctx *Context) ([]*Topic, error) {
+	values, err := scanTopicRows(ctx.Tx.Query(categoriesLatestTopics, ctx.CurrentUser, ctx.Sudo, ids))
+
+	sorted := make([]*Topic, len(ids))
+search:
+	for i, id := range ids {
+		if id == 0 {
+			continue
+		}
+
+		for _, v := range values {
+			if v.Category == id {
+				sorted[i] = v
+				continue search
+			}
+		}
+
+		if err != nil {
+			err = sql.ErrNoRows
+		}
+	}
+
+	return sorted, errors.Wrap(err, "get latest topics in categories")
 }

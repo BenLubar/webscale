@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/BenLubar/webscale/model"
+	"github.com/BenLubar/webscale/model/helpers"
 	"github.com/BenLubar/webscale/view"
 )
 
@@ -15,17 +16,26 @@ func index(w http.ResponseWriter, ctx *model.Context) error {
 
 	var err error
 	var data struct {
-		Categories []*model.Category
-		Latest     []*model.Topic
+		Categories []helpers.CategoryWithLatestTopic
+		Latest     []helpers.TopicWithLastPost
 	}
 
 	if ctx.Page == 0 {
-		if data.Categories, err = model.TopLevelCategories(ctx); err != nil {
+		var categories []*model.Category
+		if categories, err = model.TopLevelCategories(ctx); err != nil {
+			return err
+		}
+
+		if data.Categories, err = helpers.CategoriesLatestTopics(ctx, categories); err != nil {
 			return err
 		}
 	}
 
-	if data.Latest, err = model.LatestTopics(ctx, ctx.Page); err != nil {
+	var topics []*model.Topic
+	if topics, err = model.LatestTopics(ctx, ctx.Page); err != nil {
+		return err
+	}
+	if data.Latest, err = helpers.TopicsLastPosts(ctx, topics); err != nil {
 		return err
 	}
 

@@ -13,13 +13,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-func category(w http.ResponseWriter, ctx *model.Context) error {
-	if ctx.Request.URL.Path == "/category/" {
+func topic(w http.ResponseWriter, ctx *model.Context) error {
+	if ctx.Request.URL.Path == "/topic/" {
 		http.Redirect(w, ctx.Request, "/", http.StatusMovedPermanently)
 		return nil
 	}
 
-	path := strings.Split(strings.TrimPrefix(ctx.Request.URL.Path, "/category/"), "/")
+	path := strings.Split(strings.TrimPrefix(ctx.Request.URL.Path, "/topic/"), "/")
 	if len(path) < 1 || len(path) > 2 {
 		handleError(w, ctx, nil, http.StatusNotFound)
 		return nil
@@ -27,15 +27,16 @@ func category(w http.ResponseWriter, ctx *model.Context) error {
 
 	var err error
 	var data struct {
+		Topic    *model.Topic
+		Author   *model.User
 		Category *model.Category
-		Children []helpers.CategoryWithLatestTopic
-		Topics   []helpers.TopicWithLastPost
+		Posts    []helpers.PostWithAuthor
 	}
 
 	if n, err := strconv.ParseInt(path[0], 10, 64); err != nil || n == 0 {
 		handleError(w, ctx, nil, http.StatusNotFound)
 		return nil
-	} else if data.Category, err = model.CategoryID(n).Get(ctx); err != nil {
+	} else if data.Topic, err = model.TopicID(n).Get(ctx); err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			handleError(w, ctx, nil, http.StatusNotFound)
 			return nil
@@ -43,8 +44,12 @@ func category(w http.ResponseWriter, ctx *model.Context) error {
 		return err
 	}
 
-	if len(path) < 2 || path[1] != data.Category.Slug {
-		url := fmt.Sprintf("/category/%d/%s", data.Category.ID, data.Category.Slug)
+	if data.Author, err = data.Topic.Author.Get(ctx); err != nil && errors.Cause(err) != sql.ErrNoRows {
+		return err
+	}
+
+	if len(path) < 2 || path[1] != data.Topic.Slug {
+		url := fmt.Sprintf("/topic/%d/%s", data.Topic.ID, data.Topic.Slug)
 		if ctx.Page != 0 {
 			url = fmt.Sprintf("%s?page=%d", url, ctx.Page)
 		}
@@ -53,31 +58,20 @@ func category(w http.ResponseWriter, ctx *model.Context) error {
 		return nil
 	}
 
-	var topics []*model.Topic
-	if topics, err = data.Category.Topics(ctx, ctx.Page); err != nil {
+	var posts []*model.Post
+	if posts, err = data.Topic.Posts(ctx, ctx.Page); err != nil {
 		return err
 	}
-	if data.Topics, err = helpers.TopicsLastPosts(ctx, topics); err != nil {
+	if data.Posts, err = helpers.PostsAuthors(ctx, posts); err != nil {
 		return err
 	}
 
-	if ctx.Page != 0 && len(data.Topics) == 0 {
+	if ctx.Page != 0 && len(data.Posts) == 0 {
 		handleError(w, ctx, nil, http.StatusNotFound)
 		return nil
 	}
 
-	if ctx.Page == 0 {
-		var categories []*model.Category
-		if categories, err = data.Category.Children(ctx); err != nil {
-			return err
-		}
-
-		if data.Children, err = helpers.CategoriesLatestTopics(ctx, categories); err != nil {
-			return err
-		}
-	}
-
-	ctx.Header.Title = data.Category.Name
+	ctx.Header.Title = data.Topic.Name
 	ctx.Header.Breadcrumb = []model.Breadcrumb{
 		{
 			Name: "#webscale",
@@ -85,6 +79,9 @@ func category(w http.ResponseWriter, ctx *model.Context) error {
 		},
 	}
 
+	if data.Category, err = data.Topic.Category.Get(ctx); err != nil {
+		return err
+	}
 	breadcrumb, err := data.Category.Path.Get(ctx)
 	if err != nil {
 		return err
@@ -96,14 +93,18 @@ func category(w http.ResponseWriter, ctx *model.Context) error {
 			Path: fmt.Sprintf("/category/%d/%s", c.ID, c.Slug),
 		})
 	}
+	ctx.Header.Breadcrumb = append(ctx.Header.Breadcrumb, model.Breadcrumb{
+		Name: data.Topic.Name,
+		Path: fmt.Sprintf("/topic/%d/%s", data.Topic.ID, data.Topic.Slug),
+	})
 
 	if err = ctx.Tx.Commit(); err != nil {
 		return err
 	}
 
-	return view.Category.Execute(w, ctx, http.StatusOK, data)
+	return view.Topic.Execute(w, ctx, http.StatusOK, data)
 }
 
 func init() {
-	http.Handle("/category/", handler(category))
+	http.Handle("/topic/", handler(topic))
 }

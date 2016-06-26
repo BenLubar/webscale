@@ -749,4 +749,9 @@ insert into group_permissions (group_id, permission_id, priority, allow, self, s
 end;
 $$`,
 	},
+	{
+		description: "",
+		query: `
+create index topics_category_bumped on topics (category_id, bumped_at desc);`,
+	},
 }

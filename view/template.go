@@ -6,9 +6,11 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/BenLubar/webscale/model"
 	"github.com/BenLubar/webscale/static"
+	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 )
 
@@ -17,7 +19,8 @@ type Template struct {
 }
 
 var tmpl = template.New("").Funcs(template.FuncMap{
-	"static": static.Path,
+	"static":    static.Path,
+	"timestamp": timestamp,
 })
 
 func parse(name, content string) *Template {
@@ -49,4 +52,9 @@ func (t *Template) Execute(w http.ResponseWriter, ctx *model.Context, status int
 	_, _ = io.Copy(w, &buf)
 
 	return nil
+}
+
+func timestamp(t time.Time) template.HTML {
+	human := humanize.Time(t)
+	return template.HTML(`<time title="` + template.HTMLEscapeString(t.Format(time.RFC3339Nano)) + `" datetime="` + template.HTMLEscapeString(t.Format("2006-01-02T15:04:05.999Z07:00")) + `">` + template.HTMLEscapeString(human) + `</time>`)
 }
