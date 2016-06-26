@@ -21,6 +21,7 @@ type Template struct {
 var tmpl = template.New("").Funcs(template.FuncMap{
 	"static":    static.Path,
 	"timestamp": timestamp,
+	"pages":     pages,
 })
 
 func parse(name, content string) *Template {
@@ -31,6 +32,7 @@ func parse(name, content string) *Template {
 
 func (t *Template) Execute(w http.ResponseWriter, ctx *model.Context, status int, data interface{}) error {
 	ctx.Header.Template = t.Name
+	ctx.Footer.CurrentPage = ctx.Page
 
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "header", ctx.Header); err != nil {
@@ -57,4 +59,22 @@ func (t *Template) Execute(w http.ResponseWriter, ctx *model.Context, status int
 func timestamp(t time.Time) template.HTML {
 	human := humanize.Time(t)
 	return template.HTML(`<time title="` + template.HTMLEscapeString(t.Format(time.RFC3339Nano)) + `" datetime="` + template.HTMLEscapeString(t.Format("2006-01-02T15:04:05.999Z07:00")) + `">` + template.HTMLEscapeString(human) + `</time>`)
+}
+
+func pages(current, count int64) template.HTML {
+	if count <= 1 {
+		return ""
+	}
+
+	// TODO: add quick links to the left and right of the current page and
+	//       first/last links where applicable.
+	b := []byte("<ul class=\"pages\">")
+	b = append(b, "<li><form action=\"\" method=\"GET\"><input type=\"submit\" value=\"go to page\"><input type=\"number\" name=\"page\" min=\"0\" max=\""...)
+	b = strconv.AppendInt(b, count-1, 10)
+	b = append(b, "\" step=\"1\" value=\""...)
+	b = strconv.AppendInt(b, current, 10)
+	b = append(b, "\"></form></li>"...)
+	b = append(b, "</ul>\n"...)
+
+	return template.HTML(b)
 }

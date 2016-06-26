@@ -60,6 +60,9 @@ func category(w http.ResponseWriter, ctx *model.Context) error {
 	if data.Topics, err = helpers.TopicsLastPosts(ctx, topics); err != nil {
 		return err
 	}
+	if ctx.Footer.PageCount, err = data.Category.TopicsPageCount(ctx); err != nil {
+		return err
+	}
 
 	if ctx.Page != 0 && len(data.Topics) == 0 {
 		handleError(w, ctx, nil, http.StatusNotFound)

@@ -249,3 +249,5 @@ const noopPermission = `(coalesce(0, $1::bigint) = 0 and coalesce(false, $2::boo
 
 // Eventually, this will be stored in the database somewhere.
 const perPage = 50
+
+const pageCountField = `(count(*) + $4::bigint - 1) / $4::bigint`

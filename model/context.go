@@ -18,6 +18,8 @@ type Context struct {
 		Breadcrumb []Breadcrumb
 	}
 	Footer struct {
+		CurrentPage int64
+		PageCount   int64
 	}
 }
 

@@ -51,6 +51,14 @@ func (c *Category) Topics(ctx *Context, page int64) ([]*Topic, error) {
 	return topics, errors.Wrapf(err, "list topics in category %d (page %d)", c.ID, page)
 }
 
+var categoryTopicsPageCount = db.Prepare(`select ` + pageCountField + ` from topics as t where can_category($1::bigint, 'category-list-topics', $2::boolean, $3::bigint) and can_topic($1::bigint, 'topic-meta', $2::boolean, t.id) and t.category_id = $3::bigint;`)
+
+func (c *Category) TopicsPageCount(ctx *Context) (int64, error) {
+	var count int64
+	err := ctx.Tx.QueryRow(categoryTopicsPageCount, ctx.CurrentUser, ctx.Sudo, c.ID, perPage).Scan(&count)
+	return count, errors.Wrapf(err, "count pages in category %d", c.ID)
+}
+
 var categoriesLatestTopics = db.Prepare(`select ` + topicFields + ` from topics as t where t.id = (select t2.id from topics as t2 where can_topic($1::bigint, 'topic-meta', $2::boolean, t2.id) and t2.category_id = t.category_id order by t2.bumped_at desc, t.id asc limit 1) and can_category($1::bigint, 'category-list-topics', $2::boolean, t.category_id) and array[t.category_id] <@ $3::bigint[] order by t.category_id asc;`)
 
 func (ids CategoryIDs) LatestTopics(ctx *Context) ([]*Topic, error) {

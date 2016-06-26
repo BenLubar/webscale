@@ -65,6 +65,9 @@ func topic(w http.ResponseWriter, ctx *model.Context) error {
 	if data.Posts, err = helpers.PostsAuthors(ctx, posts); err != nil {
 		return err
 	}
+	if ctx.Footer.PageCount, err = data.Topic.PostsPageCount(ctx); err != nil {
+		return err
+	}
 
 	if ctx.Page != 0 && len(data.Posts) == 0 {
 		handleError(w, ctx, nil, http.StatusNotFound)

@@ -16,6 +16,15 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx.Request = r
 
 	if page := ctx.Request.FormValue("page"); page != "" {
+		if page == "0" {
+			u := *r.URL
+			q := u.Query()
+			q.Del("page")
+			u.RawQuery = q.Encode()
+			http.Redirect(w, r, u.String(), http.StatusMovedPermanently)
+			return
+		}
+
 		var err error
 		ctx.Page, err = strconv.ParseInt(page, 10, 64)
 		if err != nil || ctx.Page <= 0 || page[0] == '0' {

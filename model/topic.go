@@ -47,6 +47,14 @@ func (t *Topic) Posts(ctx *Context, page int64) ([]*Post, error) {
 	return posts, errors.Wrapf(err, "list posts in topic %d (page %d)", t.ID, page)
 }
 
+var topicPostsPageCount = db.Prepare(`select ` + pageCountField + ` from posts as p where can_topic($1::bigint, 'topic-meta', $2::boolean, $3::bigint) and can_post($1::bigint, 'post-meta', $2::boolean, p.id) and p.topic_id = $3::bigint;`)
+
+func (t *Topic) PostsPageCount(ctx *Context) (int64, error) {
+	var count int64
+	err := ctx.Tx.QueryRow(topicPostsPageCount, ctx.CurrentUser, ctx.Sudo, t.ID, perPage).Scan(&count)
+	return count, errors.Wrapf(err, "count pages in topic %d", t.ID)
+}
+
 var topicsLastPosts = db.Prepare(`select ` + postFields + ` from posts as p where p.id = (select p2.id from posts as p2 where can_post($1::bigint, 'post-meta', $2::boolean, p2.id) and p2.topic_id = p.topic_id order by p2.created_at desc, p2.id asc limit 1) and can_topic($1::bigint, 'topic-meta', $2::boolean, p.topic_id) and array[p.topic_id] <@ $3::bigint[] order by p.topic_id asc;`)
 
 func (ids TopicIDs) LastPosts(ctx *Context) ([]*Post, error) {

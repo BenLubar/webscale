@@ -21,6 +21,7 @@ func handleError(w http.ResponseWriter, ctx *model.Context, err error, status in
 
 	ctx.Header.Title = "Error"
 	ctx.Header.Breadcrumb = nil
+	ctx.Footer.PageCount = 0
 
 	_ = view.Error.Execute(w, ctx, status, struct {
 		Error error
