@@ -750,7 +750,7 @@ end;
 $$`,
 	},
 	{
-		description: "",
+		description: "create index topics_category_bumped",
 		query: `
 create index topics_category_bumped on topics (category_id, bumped_at desc);`,
 	},
