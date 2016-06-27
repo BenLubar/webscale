@@ -7,9 +7,9 @@ script:
   # Run go generate on all packages and check for changed files
   - go generate ./... && git status && git add --all . && [ ! -n "`git diff --staged HEAD`" ]
   # Test the schema package first so the database init fails the correct test
-  - go test -v ./db/internal/schema -db 'dbname=travis_ci_test user=postgres sslmode=disable'
-  # Test all packages in parallel
-  - go test -v ./... -db 'dbname=travis_ci_test user=postgres sslmode=disable'
+  - go test -race -cover -v ./db/internal/schema -db 'dbname=travis_ci_test user=postgres sslmode=disable'
+  # Test all the packages and upload the coverage information
+  - go list ./... | while read -r pkg; do go test -race -coverprofile this.prof -coverpkg ./... -v "$pkg" -db 'dbname=travis_ci_test user=postgres sslmode=disable' && cat this.prof >> all.prof; done && sed '1!{/^mode:/d;}' -i all.prof && goveralls -coverprofile all.prof
 services:
   - postgresql
 addons:
@@ -22,6 +22,8 @@ addons:
       - postgresql-plperl-9.4
 before_script:
   - psql -c 'create database travis_ci_test;' -U postgres
+before_install:
+  - go get -u golang.org/x/tools/cmd/cover github.com/mattn/goveralls
 notifications:
   webhooks:
     urls:
