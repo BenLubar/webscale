@@ -3,6 +3,8 @@
 # The first 3 octets of an IPv4 /24 dedicated to #webscale. Defaults to 172.19.1
 WEBSCALE_SUBNET=${WEBSCALE_SUBNET:-172.19.1}
 
+./test-docker.bash
+
 if [[ "$1" = "--reset" ]]; then
 	docker pull benlubar/webscale:postgres
 	docker stop webscale-postgres webscale-app-{0..1}

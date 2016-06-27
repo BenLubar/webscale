@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # The first 3 octets of an IPv4 /24 dedicated to #webscale. Defaults to 172.19.1
 WEBSCALE_SUBNET=${WEBSCALE_SUBNET:-172.19.1}
@@ -12,8 +12,9 @@ docker run -d --name webscale-postgres-test --net webscale --ip "$WEBSCALE_SUBNE
 # wait for postgres to be ready
 until nc -z "$WEBSCALE_SUBNET.42" 5432; do sleep 1; done
 
-# run the tests
-go test -p 1 -cover ./... -db "host=$WEBSCALE_SUBNET.42 user=postgres sslmode=disable"
+# run the schema test first so if the database init fails it fails here
+go test -cover ./db/internal/schema -db "host=$WEBSCALE_SUBNET.42 user=postgres sslmode=disable" && \
+go test -cover ./... -db "host=$WEBSCALE_SUBNET.42 user=postgres sslmode=disable"
 
 exit_status=$?
 

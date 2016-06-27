@@ -4,14 +4,20 @@ go:
   - 1.6
   - tip
 script:
+  # Run go generate on all packages and check for changed files
   - go generate ./... && git status && git add --all . && [ ! -n "`git diff --staged HEAD`" ]
-  - go test -p 1 -v ./... -db 'dbname=travis_ci_test user=postgres sslmode=disable'
+  # Test the schema package first so the database init fails the correct test
+  - go test -v ./db/internal/schema -db 'dbname=travis_ci_test user=postgres sslmode=disable'
+  # Test all packages in parallel
+  - go test -v ./... -db 'dbname=travis_ci_test user=postgres sslmode=disable'
 services:
   - postgresql
 addons:
+  # TODO: change this and plperl below to 9.5 when Travis CI supports it
   postgresql: 9.4
   apt:
     packages:
+      # nodejs needed for go generate (lessc, etc.)
       - nodejs
       - postgresql-plperl-9.4
 before_script:
@@ -23,4 +29,3 @@ notifications:
     on_success: change
     on_failure: always
     on_start: never
-
