@@ -51,14 +51,9 @@ func (u *User) SetPassword(tx *db.Tx, password string) error {
 		return errors.Wrap(err, "hash user password")
 	}
 
-	result, err := tx.Exec(userSetPassword, hash, u.ID, u.password)
+	rows, err := tx.Exec(userSetPassword, hash, u.ID, u.password)
 	if err != nil {
 		return errors.Wrap(err, "update user password")
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return errors.Wrap(err, "check update user password")
 	}
 
 	if rows == 0 {

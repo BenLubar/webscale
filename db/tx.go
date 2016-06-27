@@ -2,6 +2,7 @@ package db // import "github.com/BenLubar/webscale/db"
 
 import (
 	"database/sql"
+	"database/sql/driver"
 
 	"github.com/pkg/errors"
 )
@@ -35,11 +36,12 @@ func (tx *Tx) Commit() error {
 
 // Exec executes a query that doesn't return rows.
 // For example: an INSERT and UPDATE.
-func (tx *Tx) Exec(query *Stmt, args ...interface{}) (sql.Result, error) {
+func (tx *Tx) Exec(query *Stmt, args ...interface{}) (int64, error) {
 	query.once.Do(query.init)
 
 	result, err := tx.impl.Stmt(query.impl).Exec(args...)
-	return result, errors.Wrap(err, "transaction exec")
+	affected, _ := result.(driver.RowsAffected)
+	return int64(affected), errors.Wrap(err, "transaction exec")
 }
 
 // Query executes a query that returns rows, typically a SELECT.

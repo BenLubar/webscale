@@ -3,7 +3,7 @@
 # The first 3 octets of an IPv4 /24 dedicated to #webscale. Defaults to 172.19.1
 WEBSCALE_SUBNET=${WEBSCALE_SUBNET:-172.19.1}
 
-pg_versions=9.4 9.5 9.6
+pg_versions="9.4 9.5 9.6"
 
 for pg_version in $pg_versions; do
 	# update the postgres image from the docker hub
