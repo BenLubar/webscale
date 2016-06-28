@@ -107,7 +107,7 @@ search:
 			}
 		}
 
-		if err != nil {
+		if err == nil {
 			err = sql.ErrNoRows
 		}
 	}
