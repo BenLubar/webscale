@@ -754,4 +754,9 @@ $$`,
 		query: `
 create index topics_category_bumped on topics (category_id, bumped_at desc);`,
 	},
+	{
+		description: "create categories.description",
+		query: `
+alter table categories add column description text not null default '';`,
+	},
 }

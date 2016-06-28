@@ -10,18 +10,19 @@ import (
 )
 
 type Category struct {
-	ID     CategoryID
-	Name   string
-	Slug   string
-	Parent CategoryID
-	Path   CategoryIDs
+	ID          CategoryID
+	Name        string
+	Slug        string
+	Parent      CategoryID
+	Description string
+	Path        CategoryIDs
 }
 
-const categoryFields = `c.id, c.name, c.slug, c.parent_category_id, cp.path`
+const categoryFields = `c.id, c.name, c.slug, c.parent_category_id, c.description, cp.path`
 
 func scanCategory(s scanner) (*Category, error) {
 	var c Category
-	if err := s.Scan(&c.ID, &c.Name, &c.Slug, &c.Parent, &c.Path); err != nil {
+	if err := s.Scan(&c.ID, &c.Name, &c.Slug, &c.Parent, &c.Description, &c.Path); err != nil {
 		return nil, err
 	}
 	return &c, nil
