@@ -759,4 +759,28 @@ create index topics_category_bumped on topics (category_id, bumped_at desc);`,
 		query: `
 alter table categories add column description text not null default '';`,
 	},
+	{
+		description: "better slugify",
+		query: `
+create or replace function slugify(t text) returns text as $$
+	use Unicode::Normalize;
+	use utf8;
+	use feature 'unicode_strings';
+
+	$_ = NFKD($_[0]);
+	s/[\pZ\-]/ /g;
+	s/[^\pL\pN_ ]//g;
+	lc;
+	s/^[ ]+|[ ]+$//g;
+	s/ /-/g;
+	return $_;
+$$ language plperlu immutable;
+
+drop function unicode_nfkd(text);
+
+update users set slug = '';
+update groups set slug = '';
+update categories set slug = '';
+update topics set slug = '';`,
+	},
 }
