@@ -783,4 +783,18 @@ update groups set slug = '';
 update categories set slug = '';
 update topics set slug = '';`,
 	},
+	{
+		description: "move users.address to user_ips",
+		query: `
+create table user_ips (
+	user_id bigint not null references users (id) on update cascade on delete cascade,
+	ip inet not null,
+	last_seen timestamp with time zone not null default now(),
+	primary key (user_id, ip)
+);
+
+insert into user_ips select id user_id, unnest(address) ip, last_seen from users;
+alter table users drop column address;
+create index user_ips_ip on user_ips (ip);`,
+	},
 }

@@ -3,6 +3,7 @@
 package model // import "github.com/BenLubar/webscale/model"
 
 import (
+	"net"
 	"time"
 
 	"github.com/BenLubar/webscale/db"
@@ -19,7 +20,6 @@ type User struct {
 	Email     string
 	JoinDate  time.Time
 	LastSeen  pq.NullTime
-	Address   IPs
 	Birthday  pq.NullTime
 	Signature string
 	Bio       string
@@ -28,11 +28,11 @@ type User struct {
 	Avatar    string
 }
 
-const userFields = `u.id, u.name, u.slug, u.password, u.email, u.join_date, u.last_seen, u.address, u.birthday, u.signature, u.bio, u.location, u.website, u.avatar`
+const userFields = `u.id, u.name, u.slug, u.password, u.email, u.join_date, u.last_seen, u.birthday, u.signature, u.bio, u.location, u.website, u.avatar`
 
 func scanUser(s scanner) (*User, error) {
 	var u User
-	if err := s.Scan(&u.ID, &u.Name, &u.Slug, &u.password, &u.Email, &u.JoinDate, &u.LastSeen, &u.Address, &u.Birthday, &u.Signature, &u.Bio, &u.Location, &u.Website, &u.Avatar); err != nil {
+	if err := s.Scan(&u.ID, &u.Name, &u.Slug, &u.password, &u.Email, &u.JoinDate, &u.LastSeen, &u.Birthday, &u.Signature, &u.Bio, &u.Location, &u.Website, &u.Avatar); err != nil {
 		return nil, err
 	}
 	return &u, nil
@@ -81,4 +81,73 @@ func (u *User) CheckPassword(tx *db.Tx, password string) error {
 	}
 
 	return nil
+}
+
+type UserIP struct {
+	User     UserID
+	IP       net.IP
+	LastSeen time.Time
+}
+
+var userIPs = db.Prepare(`select ip, last_seen from user_ips where user_id = $1 order by last_seen desc;`)
+
+func (u *User) IPs(ctx *Context) ([]UserIP, error) {
+	rows, err := ctx.Tx.Query(userIPs, u.ID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "find IP addresses of user %d", u.ID)
+	}
+	defer rows.Close()
+
+	var ips []UserIP
+
+	for rows.Next() {
+		var s string
+		var t time.Time
+		if err = rows.Scan(&s, &t); err != nil {
+			return nil, errors.Wrapf(err, "scan IP addresses of user %d", u.ID)
+		}
+
+		ip := net.ParseIP(s)
+		if ip == nil {
+			return nil, errors.Errorf("invalid IP address: %q", s)
+		}
+
+		ips = append(ips, UserIP{User: u.ID, IP: ip, LastSeen: t})
+	}
+
+	return ips, errors.Wrapf(rows.Close(), "find IP addresses of user %d", u.ID)
+}
+
+var usersByIP = db.Prepare(`select user_id, ip, last_seen from user_ips where ip <<= $1::cidr order by last_seen desc;`)
+
+func UsersByIP(ctx *Context, cidr *net.IPNet) ([]UserIP, error) {
+	if _, bits := cidr.Mask.Size(); bits == 0 {
+		return nil, errors.Errorf("invalid CIDR mask: %q", cidr)
+	}
+
+	rows, err := ctx.Tx.Query(usersByIP, cidr.String())
+	if err != nil {
+		return nil, errors.Wrapf(err, "find users with IP address %q", cidr)
+	}
+	defer rows.Close()
+
+	var ips []UserIP
+
+	for rows.Next() {
+		var u UserID
+		var s string
+		var t time.Time
+		if err = rows.Scan(&u, &s, &t); err != nil {
+			return nil, errors.Wrapf(err, "scan users with IP address %q", cidr)
+		}
+
+		ip := net.ParseIP(s)
+		if ip == nil {
+			return nil, errors.Errorf("invalid IP address: %q", s)
+		}
+
+		ips = append(ips, UserIP{User: u, IP: ip, LastSeen: t})
+	}
+
+	return ips, errors.Wrapf(rows.Close(), "find users with IP address %q", cidr)
 }
