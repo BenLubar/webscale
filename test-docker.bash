@@ -8,7 +8,7 @@ WEBSCALE_SUBNET=${WEBSCALE_SUBNET:-172.19.1}
 
 db="host=$WEBSCALE_SUBNET.42 user=postgres sslmode=disable"
 
-pg_versions="9.5"
+pg_versions="9.4"
 
 for pg_version in $pg_versions; do
 	# update the postgres image from the docker hub

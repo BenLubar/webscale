@@ -1,6 +1,6 @@
 #!/bin/bash
 
-case "$DATABASE"
+case "$DATABASE" in
 postgres)
 	data_source_name="dbname=travis_ci_test user=postgres sslmode=disable"
 	go_tags=""
