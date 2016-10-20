@@ -1,18 +1,29 @@
 #!/bin/bash
 
-# Test the schema package first so the database init fails the correct test
-go test -race -coverprofile all.prof -coverpkg ./... -v ./db/internal/schema -db 'dbname=travis_ci_test user=postgres sslmode=disable' |& grep -v 'warning: no packages being tested depend on '
-error_status=$?
+case "$DATABASE"
+postgres)
+	data_source_name="dbname=travis_ci_test user=postgres sslmode=disable"
+	go_tags=""
+	;;
+esac
 
-# Test all the packages and upload the coverage information
+rm -f all.prof
+touch all.prof
+
+go build -tags "$go_tags" ./cmd/webscale-upgrade && ./webscale-upgrade -db "$data_source_name" || exit $?
+
+error_status=0
+
 go list ./... | while read -r pkg; do
-	go test -race -coverprofile this.prof -coverpkg ./... -v "$pkg" -db 'dbname=travis_ci_test user=postgres sslmode=disable' |& grep -v 'warning: no packages being tested depend on '
+	go test -tags "$go_tags" -race -coverprofile this.prof -coverpkg ./... -v "$pkg" -db "$data_source_name" |& grep -v 'warning: no packages being tested depend on '
 	error_status=$(( $error_status + $? ))
 
-	cat this.prof >> all.prof 2> /dev/null
+	test -f this.prof && gocovmerge this.prof all.prof > merged.prof && mv merged.prof all.prof
+	rm -f this.prof
 done
 
-sed '1!{/^mode:/d;}' -i all.prof
 goveralls -coverprofile all.prof
+
+rm -f all.prof merged.prof
 
 exit $error_status

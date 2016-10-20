@@ -1,55 +1,75 @@
-package db // import "github.com/BenLubar/webscale/db"
+package db
 
 import (
 	"database/sql"
-	"log"
-	"runtime/debug"
 	"sync"
 
-	"github.com/lib/pq"
+	"github.com/BenLubar/webscale/internal"
 )
 
-var (
-	// Used by Init to wait for prepared queries to finish before returning.
-	prepareGroup sync.WaitGroup
-)
+var stmtWait sync.WaitGroup
 
-// Prepare creates a prepared statement for later queries or executions.
-// Multiple queries or executions may be run concurrently from the
-// returned statement.
+// Stmt is a prepared SQL statement.
+type Stmt struct {
+	stmt  *sql.Stmt
+	query string
+	ready <-chan struct{}
+	stack internal.StackTrace
+}
+
+// Prepare creates a prepared SQL statement. The database interaction happens
+// asynchronously, and the program terminates if the query is malformed.
 func Prepare(query string) *Stmt {
-	prepareGroup.Add(1)
-
+	done := make(chan struct{})
 	stmt := &Stmt{
 		query: query,
-		from:  string(debug.Stack()),
+		ready: done,
+		stack: internal.Callers(2),
 	}
-
-	go stmt.once.Do(stmt.init)
+	stmtWait.Add(1)
+	go stmt.prepare(done)
 
 	return stmt
 }
 
-// Stmt is a prepared statement.
-type Stmt struct {
-	query string    // query source SQL
-	from  string    // discarded after preparing succeeds
-	once  sync.Once // used to synchronize init
-	impl  *sql.Stmt
+func (stmt *Stmt) prepare(done chan<- struct{}) {
+	<-ready
+
+	var err error
+	stmt.stmt, err = conn.Prepare(stmt.query)
+	if err == nil {
+		close(done)
+		stmtWait.Done()
+		return
+	}
+
+	buf := []byte(err.Error())
+	buf = stmt.appendErrorDetails(buf)
+	buf = appendDriverErrorDetails(buf, err, stmt, nil)
+
+	prepareFatal(string(buf), done, &stmtWait)
 }
 
-func (stmt *Stmt) init() {
-	<-waitForInit
+// variable for testing
+var prepareFatal = func(message string, done chan<- struct{}, wg *sync.WaitGroup) {
+	panic(message)
+}
 
-	if stmtImpl, err := theDB.Prepare(stmt.query); err != nil {
-		code := "?"
-		if pe, ok := err.(*pq.Error); ok {
-			code = string(pe.Code)
-		}
-		log.Fatalf("preparing statement failed: %s: %v\n\nsource text:\n%s\n\nstack trace:\n%s", code, err, stmt.query, stmt.from)
-	} else {
-		stmt.from = ""
-		stmt.impl = stmtImpl
-		prepareGroup.Done()
-	}
+func (stmt *Stmt) appendErrorDetails(buf []byte) []byte {
+	buf = append(buf, "\n\nQuery:\n\n"...)
+	buf = append(buf, stmt.query...)
+	buf = append(buf, "\n\nPrepared at:"...)
+	buf = stmt.stack.AppendTo(buf)
+
+	return buf
+}
+
+// WaitAll waits for all prepared statements to be ready.
+func WaitAll() {
+	stmtWait.Wait()
+}
+
+// Wait waits for the prepared statement to be ready.
+func (stmt *Stmt) Wait() {
+	<-stmt.ready
 }

@@ -1,27 +1,20 @@
 sudo: false
 language: go
-go:
-  - 1.6
-  - tip
 script:
   # Run go generate on all packages and check for changed files
   - go generate ./... && git status && git add --all . && [ ! -n "`git diff --staged HEAD`" ]
   # Run the test cases
   - ./.travis-test.bash
-services:
-  - postgresql
 addons:
-  # TODO: change this and plperl below to 9.5 when Travis CI supports it
-  postgresql: 9.4
   apt:
     packages:
       # nodejs needed for go generate (lessc, etc.)
       - nodejs
-      - postgresql-plperl-9.4
-before_script:
-  - psql -c 'create database travis_ci_test;' -U postgres
 before_install:
-  - go get -u golang.org/x/tools/cmd/cover github.com/mattn/goveralls
+  - go get -u \
+        golang.org/x/tools/cmd/cover \
+        github.com/wadey/gocovmerge \
+        github.com/mattn/goveralls
 notifications:
   webhooks:
     urls:
@@ -29,3 +22,22 @@ notifications:
     on_success: change
     on_failure: always
     on_start: never
+matrix:
+  exclude: # exclude default job so only the explicitly included jobs are run
+    - language: go
+  include:
+    - go:
+        - tip
+      services:
+        - postgresql
+      addons:
+        apt:
+          sources:
+            - precise-pgdg-9.5
+          packages:
+            - postgresql-9.5
+            - postgresql-plperl-9.5
+      before_script:
+        - psql -c 'create database travis_ci_test;' -U postgres
+      env:
+        - DATABASE=postgres DB_VERSION=9.5 GO_VERSION=devel
